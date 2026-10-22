@@ -1,0 +1,17 @@
+name = "linkedin-auto-poster"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["30 3 * * *"]  # 03:30 UTC = 09:00 IST, daily
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "REPLACE_WITH_KV_ID"
+
+[vars]
+AWS_REGION = "us-east-1"
+BEDROCK_MODEL_ID = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+LINKEDIN_VERSION = "202506"
+DRY_RUN = "true"
