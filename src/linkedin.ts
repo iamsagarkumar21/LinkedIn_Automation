@@ -33,27 +33,40 @@ export async function refreshTokens(args: RefreshArgs): Promise<Tokens> {
   };
 }
 
-export function buildPostBody(authorUrn: string, text: string, imageUrn: string) {
+/** The Posts API reads commentary as "little text": these characters are reserved. '#' is left alone so hashtags work. */
+export function escapeLittleText(text: string): string {
+  return text.replace(/[\\|{}@\[\]()<>*_~]/g, "\\$&");
+}
+
+export function buildPostBody(authorUrn: string, text: string, imageUrn?: string) {
   return {
     author: authorUrn,
-    commentary: text,
+    commentary: escapeLittleText(text),
     visibility: "PUBLIC",
     distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
-    content: { media: { id: imageUrn, title: "" } },
+    ...(imageUrn ? { content: { media: { id: imageUrn, title: "" } } } : {}),
     lifecycleState: "PUBLISHED",
     isReshareDisabledByAuthor: false,
   };
 }
 
-export interface PublishArgs { env: Env; text: string; imageBase64: string; imageMime: string; fetchFn?: typeof fetch; }
+export interface PublishArgs { env: Env; text: string; imageBase64?: string; imageMime?: string; fetchFn?: typeof fetch; }
 
 export async function publishPost(args: PublishArgs): Promise<void> {
   const fetchFn = args.fetchFn ?? globalThis.fetch;
   let tokens = await getTokens(args.env);
   if (!tokens) throw new Error("No LinkedIn tokens stored — run the one-time OAuth setup");
   if (needsRefresh(tokens)) {
-    tokens = await refreshTokens({ env: args.env, tokens, fetchFn });
-    await setTokens(args.env, tokens);
+    try {
+      if (!tokens.refreshToken) throw new Error("no refresh token stored");
+      tokens = await refreshTokens({ env: args.env, tokens, fetchFn });
+      await setTokens(args.env, tokens);
+    } catch (err: any) {
+      if (tokens.accessExpiresAt <= Date.now()) {
+        throw new Error(`LinkedIn access token expired and could not be refreshed (${err?.message ?? err}) — re-authorize via scripts/linkedin-oauth.md`);
+      }
+      // still valid: carry on with the current token
+    }
   }
 
   const h = {
@@ -62,21 +75,25 @@ export async function publishPost(args: PublishArgs): Promise<void> {
     "X-Restli-Protocol-Version": "2.0.0",
   };
 
-  const initRes = await fetchFn("https://api.linkedin.com/rest/images?action=initializeUpload", {
-    method: "POST", headers: { ...h, "Content-Type": "application/json" },
-    body: JSON.stringify({ initializeUploadRequest: { owner: tokens.memberUrn } }),
-  });
-  if (!initRes.ok) throw new Error(`LinkedIn init upload ${initRes.status}: ${await initRes.text()}`);
-  const init: any = await initRes.json();
-  const uploadUrl: string = init?.value?.uploadUrl;
-  const imageUrn: string = init?.value?.image;
-  if (!uploadUrl || !imageUrn) throw new Error("LinkedIn init upload missing uploadUrl/image");
+  let imageUrn: string | undefined;
+  if (args.imageBase64 && args.imageMime) {
+    const initRes = await fetchFn("https://api.linkedin.com/rest/images?action=initializeUpload", {
+      method: "POST", headers: { ...h, "Content-Type": "application/json" },
+      body: JSON.stringify({ initializeUploadRequest: { owner: tokens.memberUrn } }),
+    });
+    if (!initRes.ok) throw new Error(`LinkedIn init upload ${initRes.status}: ${await initRes.text()}`);
+    const init: any = await initRes.json();
+    const uploadUrl: string = init?.value?.uploadUrl;
+    imageUrn = init?.value?.image;
+    if (!uploadUrl || !imageUrn) throw new Error("LinkedIn init upload missing uploadUrl/image");
 
-  const putRes = await fetchFn(uploadUrl, {
-    method: "PUT", headers: { Authorization: `Bearer ${tokens.accessToken}` },
-    body: base64ToBlob(args.imageBase64, args.imageMime),
-  });
-  if (!putRes.ok) throw new Error(`LinkedIn image PUT ${putRes.status}: ${await putRes.text()}`);
+    const putRes = await fetchFn(uploadUrl, {
+      method: "PUT", headers: { Authorization: `Bearer ${tokens.accessToken}` },
+      body: base64ToBlob(args.imageBase64, args.imageMime),
+    });
+    if (!putRes.ok) throw new Error(`LinkedIn image PUT ${putRes.status}: ${await putRes.text()}`);
+
+  }
 
   const postRes = await fetchFn("https://api.linkedin.com/rest/posts", {
     method: "POST", headers: { ...h, "Content-Type": "application/json" },

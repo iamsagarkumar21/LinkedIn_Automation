@@ -8,10 +8,7 @@ export function formatCaption(draft: PostDraft): string {
 }
 
 export function base64ToBlob(base64: string, mime: string): Blob {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
+  return new Blob([Buffer.from(base64, "base64")], { type: mime });
 }
 
 export function buildKeyboard(draftId: string) {
@@ -25,10 +22,11 @@ export function buildKeyboard(draftId: string) {
 }
 
 export async function sendMessage(botToken: string, chatId: string, text: string, fetchFn: typeof fetch = globalThis.fetch, replyMarkup?: object): Promise<void> {
-  await fetchFn(api(botToken, "sendMessage"), {
+  const r = await fetchFn(api(botToken, "sendMessage"), {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
   });
+  if (!r.ok) throw new Error(`Telegram sendMessage ${r.status}: ${await r.text()}`);
 }
 
 export async function answerCallback(botToken: string, callbackId: string, fetchFn: typeof fetch = globalThis.fetch, text?: string): Promise<void> {
@@ -49,7 +47,8 @@ export async function sendDraft(args: SendDraftArgs): Promise<void> {
     form.append("chat_id", chatId);
     form.append("caption", "🖼️ Draft image preview");
     form.append("photo", base64ToBlob(draft.imageBase64, draft.imageMime), "draft.png");
-    await fetchFn(api(botToken, "sendPhoto"), { method: "POST", body: form });
+    const r = await fetchFn(api(botToken, "sendPhoto"), { method: "POST", body: form });
+    if (!r.ok) throw new Error(`Telegram sendPhoto ${r.status}: ${await r.text()}`);
   } else {
     await sendMessage(botToken, chatId, "⚠️ No image for this draft.", fetchFn);
   }

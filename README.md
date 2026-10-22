@@ -28,13 +28,22 @@ Design: `docs/superpowers/specs/2026-10-22-linkedin-auto-poster-design.md`
    npx wrangler secret put AWS_SECRET_ACCESS_KEY
    npx wrangler secret put LINKEDIN_CLIENT_ID
    npx wrangler secret put LINKEDIN_CLIENT_SECRET
+   npx wrangler secret put WEBHOOK_SECRET   # any long random string, e.g. `openssl rand -hex 32`
    npx wrangler deploy
    ```
 8. Seed LinkedIn tokens into KV (last step of the OAuth doc).
 9. **Register the Telegram webhook:**
    ```bash
-   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-worker>.workers.dev/"
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+     -d url="https://<your-worker>.workers.dev/" -d secret_token="<same value as WEBHOOK_SECRET>"
    ```
+   The Worker rejects any request that lacks this secret, so nobody else can drive your bot.
+
+## Yearly maintenance
+
+`LINKEDIN_VERSION` in `wrangler.toml` (currently `202610`) must stay inside LinkedIn's
+supported window (each monthly version lives about a year). Bump it at least once a year.
+The daily run also warns you on Telegram when your LinkedIn authorization is within 7 days of expiring.
 
 ## Going live
 
