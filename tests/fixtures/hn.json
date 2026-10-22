@@ -1,0 +1,4 @@
+{ "hits": [
+  { "objectID": "1", "title": "Cloudflare removes MCP support", "url": "https://news.example/mcp", "points": 540 },
+  { "objectID": "2", "title": "Jio files for IPO", "url": "https://news.example/jio", "points": 320 }
+] }
