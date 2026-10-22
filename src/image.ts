@@ -1,7 +1,5 @@
 export function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
+  return Buffer.from(bytes).toString("base64");
 }
 
 export function extractGeminiImage(json: any): { base64: string; mime: string } | null {

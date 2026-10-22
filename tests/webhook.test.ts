@@ -38,9 +38,10 @@ describe("handleCommand", () => {
     expect(calls.some((u) => u.includes("api.linkedin.com"))).toBe(false);
     expect(await getPendingDraft(e)).toBeNull();
   });
-  it("edit_reply replaces the pending draft text", async () => {
+  it("edit_reply replaces the pending draft text after Edit was tapped", async () => {
     const e = env();
     await setPendingDraft(e, draft);
+    await handleCommand(e, { kind: "edit", draftId: "d1", chatId: "123", fromId: "123", callbackId: "cb" }, { fetchFn: ok });
     await handleCommand(e, { kind: "edit_reply", messageText: "New text", chatId: "123", fromId: "123" }, { fetchFn: ok });
     expect((await getPendingDraft(e))?.text).toBe("New text");
   });

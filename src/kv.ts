@@ -5,6 +5,7 @@ const K = {
   draft: "draft:pending",
   recent: "topics:recent",
   style: "config:style",
+  edit: "edit:awaiting",
 };
 const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
 
@@ -60,4 +61,17 @@ export async function getStyleConfig(env: Env): Promise<StyleConfig> {
 }
 export async function getSettings(env: Env): Promise<Settings> {
   return { timezone: "Asia/Kolkata", dryRun: env.DRY_RUN === "true", allowedChatId: env.TELEGRAM_CHAT_ID };
+}
+
+const EDIT_TTL = 10 * 60 * 1000;
+export async function setAwaitingEdit(env: Env, draftId: string): Promise<void> {
+  await env.STATE.put(K.edit, JSON.stringify({ draftId, until: Date.now() + EDIT_TTL }));
+}
+/** Returns the draft id the owner is editing (one-shot), or null if no live edit request. */
+export async function takeAwaitingEdit(env: Env): Promise<string | null> {
+  const raw = await env.STATE.get(K.edit);
+  if (!raw) return null;
+  await env.STATE.delete(K.edit);
+  const { draftId, until } = JSON.parse(raw) as { draftId: string; until: number };
+  return until > Date.now() ? draftId : null;
 }

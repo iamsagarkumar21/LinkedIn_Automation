@@ -5,7 +5,7 @@ import { writePost } from "./writer";
 import { craftImagePrompt } from "./imagePrompt";
 import { generateImage } from "./image";
 import { sendDraft, sendMessage } from "./telegram";
-import { getRecentTopicKeys, addRecentTopic, setPendingDraft, getStyleConfig } from "./kv";
+import { getRecentTopicKeys, addRecentTopic, setPendingDraft, getStyleConfig, getTokens } from "./kv";
 
 export class NoFreshTopicError extends Error {
   constructor() { super("No fresh trending topic available today"); this.name = "NoFreshTopicError"; }
@@ -32,8 +32,40 @@ export async function buildDraft(env: Env, deps: PipelineDeps = {}): Promise<Pos
   };
 }
 
+export async function regenText(env: Env, draft: PostDraft, deps: PipelineDeps = {}): Promise<PostDraft> {
+  const fetchFn = deps.fetchFn ?? globalThis.fetch;
+  const style = await getStyleConfig(env);
+  const { text, hashtags } = await writePost({ topic: draft.topic, style, env, groqApiKey: env.GROQ_API_KEY, fetchFn, signedFetch: deps.signedFetch });
+  return { ...draft, id: crypto.randomUUID(), text, hashtags, status: "pending", createdAt: Date.now() };
+}
+
+export async function regenImage(env: Env, draft: PostDraft, deps: PipelineDeps = {}): Promise<PostDraft> {
+  const fetchFn = deps.fetchFn ?? globalThis.fetch;
+  const prompt = await craftImagePrompt({ topic: draft.topic, postText: draft.text, groqApiKey: env.GROQ_API_KEY, fetchFn });
+  const image = await generateImage({ prompt, geminiApiKey: env.GEMINI_API_KEY, fetchFn });
+  if (!image) throw new Error("Image generation failed on every provider");
+  return { ...draft, id: crypto.randomUUID(), imageBase64: image.base64, imageMime: image.mime, status: "pending", createdAt: Date.now() };
+}
+
+const WARN_WINDOW = 7 * 24 * 60 * 60 * 1000;
+
+async function warnIfAuthExpiring(env: Env, fetchFn: typeof fetch): Promise<void> {
+  try {
+    const t = await getTokens(env);
+    const send = (m: string) => sendMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, m, fetchFn);
+    if (!t) { await send("⚠️ No LinkedIn tokens stored — follow scripts/linkedin-oauth.md before approving a post."); return; }
+    const expiresAt = t.refreshToken ? t.refreshExpiresAt : t.accessExpiresAt;
+    const left = expiresAt - Date.now();
+    if (left < WARN_WINDOW) {
+      const days = Math.max(0, Math.ceil(left / 86400_000));
+      await send(`⚠️ LinkedIn authorization expires in ${days} day(s). Re-authorize (see scripts/linkedin-oauth.md) before then.`);
+    }
+  } catch { /* a failed warning must never block the draft */ }
+}
+
 export async function runDailyPipeline(env: Env, deps: PipelineDeps = {}): Promise<void> {
   const fetchFn = deps.fetchFn ?? globalThis.fetch;
+  await warnIfAuthExpiring(env, fetchFn);
   try {
     const draft = await buildDraft(env, deps);
     await setPendingDraft(env, draft);
@@ -43,6 +75,6 @@ export async function runDailyPipeline(env: Env, deps: PipelineDeps = {}): Promi
     const msg = err?.name === "NoFreshTopicError"
       ? "ℹ️ No fresh trending topic today — skipping."
       : `⚠️ Draft generation failed: ${err?.message ?? err}`;
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, msg, fetchFn);
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, msg, fetchFn).catch(() => {});
   }
 }
