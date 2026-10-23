@@ -1,6 +1,6 @@
 import type { Env, PostDraft } from "./types";
 import { runDailyPipeline, regenText, regenImage, type PipelineDeps } from "./pipeline";
-import { parseUpdate, sendDraft, sendMessage, answerCallback, type ParsedCommand } from "./telegram";
+import { parseUpdate, sendDraft, sendMessage, answerCallback, fetchTelegramFile, type ParsedCommand } from "./telegram";
 import { getPendingDraft, setPendingDraft, clearPendingDraft, setAwaitingEdit, takeAwaitingEdit } from "./kv";
 import { publishPost } from "./linkedin";
 
@@ -35,6 +35,21 @@ export async function handleCommand(env: Env, cmd: ParsedCommand, deps: Pipeline
   if (cmd.chatId !== env.TELEGRAM_CHAT_ID) return;
   if (cmd.fromId !== env.TELEGRAM_CHAT_ID) return;
   if (cmd.callbackId) await answerCallback(token, cmd.callbackId, fetchFn);
+
+  if (cmd.kind === "photo_reply") {
+    const d = await getPendingDraft(env);
+    if (!d) { await say("No pending draft to attach image to."); return; }
+    try {
+      const img = await fetchTelegramFile({ botToken: token, fileId: cmd.photoFileId!, fetchFn });
+      const updated: PostDraft = { ...d, imageBase64: img.base64, imageMime: img.mime };
+      await setPendingDraft(env, updated);
+      await say("🖼️ Image attached to the current draft.");
+      await sendDraft({ botToken: token, chatId: chat, draft: updated, fetchFn });
+    } catch (err: any) {
+      await say(`⚠️ Could not attach image: ${err?.message ?? err}`);
+    }
+    return;
+  }
 
   if (cmd.kind === "edit_reply") {
     const text = cmd.messageText ?? "";

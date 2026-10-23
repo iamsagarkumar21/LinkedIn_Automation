@@ -2,7 +2,8 @@ export interface Topic { key: string; title: string; url: string; source: string
 export type DraftStatus = "pending" | "publishing";
 export interface PostDraft {
   id: string; topic: Topic; text: string; hashtags: string[];
-  imageBase64?: string; imageMime?: string; status: DraftStatus; createdAt: number;
+  imageBase64?: string; imageMime?: string; imagePrompt?: string;
+  status: DraftStatus; createdAt: number;
 }
 export interface Tokens {
   accessToken: string; refreshToken: string;

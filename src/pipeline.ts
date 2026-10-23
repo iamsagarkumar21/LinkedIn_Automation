@@ -27,7 +27,7 @@ export async function buildDraft(env: Env, deps: PipelineDeps = {}): Promise<Pos
 
   return {
     id: crypto.randomUUID(), topic, text, hashtags,
-    imageBase64: image?.base64, imageMime: image?.mime,
+    imageBase64: image?.base64, imageMime: image?.mime, imagePrompt: imgPrompt,
     status: "pending", createdAt: Date.now(),
   };
 }
@@ -43,8 +43,11 @@ export async function regenImage(env: Env, draft: PostDraft, deps: PipelineDeps 
   const fetchFn = deps.fetchFn ?? globalThis.fetch;
   const prompt = await craftImagePrompt({ topic: draft.topic, postText: draft.text, groqApiKey: env.GROQ_API_KEY, fetchFn });
   const image = await generateImage({ prompt, geminiApiKey: env.GEMINI_API_KEY, fetchFn });
-  if (!image) throw new Error("Image generation failed on every provider");
-  return { ...draft, id: crypto.randomUUID(), imageBase64: image.base64, imageMime: image.mime, status: "pending", createdAt: Date.now() };
+  return {
+    ...draft, id: crypto.randomUUID(),
+    imageBase64: image?.base64, imageMime: image?.mime, imagePrompt: prompt,
+    status: "pending", createdAt: Date.now(),
+  };
 }
 
 const WARN_WINDOW = 7 * 24 * 60 * 60 * 1000;

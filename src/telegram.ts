@@ -50,14 +50,18 @@ export async function sendDraft(args: SendDraftArgs): Promise<void> {
     const r = await fetchFn(api(botToken, "sendPhoto"), { method: "POST", body: form });
     if (!r.ok) throw new Error(`Telegram sendPhoto ${r.status}: ${await r.text()}`);
   } else {
-    await sendMessage(botToken, chatId, "⚠️ No image for this draft.", fetchFn);
+    const prompt = draft.imagePrompt
+      ? `⚠️ Image generation failed. Reply with a photo to attach it, or Approve for text-only post.\n\n🖼️ Suggested image prompt (paste into any image tool):\n${draft.imagePrompt}`
+      : "⚠️ No image for this draft. Reply with a photo to attach one, or Approve for text-only.";
+    await sendMessage(botToken, chatId, prompt, fetchFn);
   }
   await sendMessage(botToken, chatId, formatCaption(draft), fetchFn, buildKeyboard(draft.id));
 }
 
 export interface ParsedCommand {
-  kind: "approve" | "edit" | "regen_text" | "regen_image" | "skip" | "edit_reply" | "ignore";
-  draftId?: string; chatId?: string; fromId?: string; callbackId?: string; messageText?: string;
+  kind: "approve" | "edit" | "regen_text" | "regen_image" | "skip" | "edit_reply" | "photo_reply" | "ignore";
+  draftId?: string; chatId?: string; fromId?: string; callbackId?: string;
+  messageText?: string; photoFileId?: string;
 }
 
 export function parseUpdate(update: any): ParsedCommand {
@@ -73,12 +77,41 @@ export function parseUpdate(update: any): ParsedCommand {
     };
   }
   const msg = update?.message;
-  if (msg && typeof msg.text === "string") {
-    return {
-      kind: "edit_reply", messageText: msg.text,
-      chatId: msg.chat?.id != null ? String(msg.chat.id) : undefined,
-      fromId: msg.from?.id != null ? String(msg.from.id) : undefined,
-    };
+  if (msg) {
+    const chatId = msg.chat?.id != null ? String(msg.chat.id) : undefined;
+    const fromId = msg.from?.id != null ? String(msg.from.id) : undefined;
+    // Photo: Telegram sends an array of sizes; pick the largest (last).
+    if (Array.isArray(msg.photo) && msg.photo.length) {
+      const biggest = msg.photo[msg.photo.length - 1];
+      return { kind: "photo_reply", chatId, fromId, photoFileId: String(biggest.file_id) };
+    }
+    // Document that is an image (user may send "as file" to preserve quality).
+    if (msg.document && typeof msg.document.mime_type === "string" && msg.document.mime_type.startsWith("image/")) {
+      return { kind: "photo_reply", chatId, fromId, photoFileId: String(msg.document.file_id) };
+    }
+    if (typeof msg.text === "string") {
+      return { kind: "edit_reply", messageText: msg.text, chatId, fromId };
+    }
   }
   return { kind: "ignore" };
+}
+
+export interface FetchTelegramFileArgs { botToken: string; fileId: string; fetchFn?: typeof fetch; }
+
+export async function fetchTelegramFile(args: FetchTelegramFileArgs): Promise<{ base64: string; mime: string }> {
+  const fetchFn = args.fetchFn ?? globalThis.fetch;
+  const meta = await fetchFn(api(args.botToken, "getFile"), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: args.fileId }),
+  });
+  if (!meta.ok) throw new Error(`Telegram getFile ${meta.status}: ${await meta.text()}`);
+  const metaJson: any = await meta.json();
+  const path = metaJson?.result?.file_path;
+  if (!path) throw new Error("Telegram getFile: missing file_path");
+  const url = `https://api.telegram.org/file/bot${args.botToken}/${path}`;
+  const file = await fetchFn(url);
+  if (!file.ok) throw new Error(`Telegram file download ${file.status}`);
+  const mime = file.headers.get("Content-Type") || (path.endsWith(".png") ? "image/png" : "image/jpeg");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return { base64: Buffer.from(bytes).toString("base64"), mime };
 }
