@@ -6,9 +6,17 @@ export interface ImagePromptArgs {
 }
 
 export async function craftImagePrompt(args: ImagePromptArgs): Promise<string> {
-  const system =
-    "You write prompts for an AI image generator. Produce ONE vivid, visually clear scene for a LinkedIn post image: modern, clean, slightly playful, professional. Avoid heavy on-image text, logos, or real brand marks. Reply with only the prompt, one sentence or two.";
-  const user = `Topic: ${args.topic.title}\nPost gist: ${args.postText.slice(0, 400)}\nWrite the image prompt.`;
+  const system = [
+    "You write prompts for an AI image generator (Midjourney / Gemini / Sora / ChatGPT image) for a LinkedIn post.",
+    "The post is an India-based AI/tech practitioner's slightly satirical take on a news item.",
+    "Produce ONE prompt (2-4 sentences) describing a vivid, meme-style scene that visually mirrors the post's punchline.",
+    "Lean into desi context when the post does: Indian street, auto-rickshaw, chaiwala, aunty, Bangalore pothole, Jio AGM audience, Indian barber shop, etc.",
+    "Allow comic-style callouts, speech bubbles, Hinglish text labels in the IMAGE when they are the joke (e.g. 'Haanji, ho jayega.', 'Shareholder hoon. Discount milega?').",
+    "Specify style explicitly: 'photo-real cinematic meme-poster', 'Pixar-style illustration', 'editorial collage with bold headline', etc. so the image feels polished, not generic clipart.",
+    "Avoid real logos and real people's faces unless the post itself names them.",
+    "Reply with ONLY the image prompt, no preamble.",
+  ].join(" ");
+  const user = `Topic: ${args.topic.title}\n\nPost text:\n${args.postText.slice(0, 800)}\n\nWrite the image prompt.`;
   try {
     const out = await groqChat({ apiKey: args.groqApiKey, system, user, temperature: 0.7, fetchFn: args.fetchFn });
     if (out) return out;

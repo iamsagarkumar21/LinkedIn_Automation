@@ -4,7 +4,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [triggers]
-crons = ["30 3 * * *"]  # 03:30 UTC = 09:00 IST, daily
+crons = ["30 5 * * *"]  # 05:30 UTC = 11:00 IST, daily
 
 [[kv_namespaces]]
 binding = "STATE"
@@ -14,4 +14,4 @@ id = "a99c944b82204e358d5bc1ecbcbbd211"
 AWS_REGION = "us-east-1"
 BEDROCK_MODEL_ID = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
 LINKEDIN_VERSION = "202610"
-DRY_RUN = "true"
+DRY_RUN = "false"

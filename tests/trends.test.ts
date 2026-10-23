@@ -12,7 +12,7 @@ describe("trend parsers", () => {
     expect(t[0]).toMatchObject({ title: "Cloudflare removes MCP support", source: "hn", score: 540 });
   });
   it("parses Reddit children", () => {
-    expect(parseReddit(reddit)[0].title).toBe("OpenAI acquires a startup");
+    expect(parseReddit(reddit, "technology")[0].title).toBe("OpenAI acquires a startup");
   });
   it("parses RSS items", () => {
     expect(parseRss(rss, "techcrunch")[0].title).toContain("open model");

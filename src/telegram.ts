@@ -45,15 +45,16 @@ export async function sendDraft(args: SendDraftArgs): Promise<void> {
   if (draft.imageBase64 && draft.imageMime) {
     const form = new FormData();
     form.append("chat_id", chatId);
-    form.append("caption", "🖼️ Draft image preview");
+    form.append("caption", "🖼️ Draft image (auto-generated — if you don't like it, reply with your own photo)");
     form.append("photo", base64ToBlob(draft.imageBase64, draft.imageMime), "draft.png");
     const r = await fetchFn(api(botToken, "sendPhoto"), { method: "POST", body: form });
     if (!r.ok) throw new Error(`Telegram sendPhoto ${r.status}: ${await r.text()}`);
   } else {
-    const prompt = draft.imagePrompt
-      ? `⚠️ Image generation failed. Reply with a photo to attach it, or Approve for text-only post.\n\n🖼️ Suggested image prompt (paste into any image tool):\n${draft.imagePrompt}`
-      : "⚠️ No image for this draft. Reply with a photo to attach one, or Approve for text-only.";
-    await sendMessage(botToken, chatId, prompt, fetchFn);
+    await sendMessage(botToken, chatId, "⚠️ Image generation failed on every provider. Reply with a photo to attach one, or Approve for text-only.", fetchFn);
+  }
+  // Always surface the image prompt so the owner can regenerate externally if the auto image is weak.
+  if (draft.imagePrompt) {
+    await sendMessage(botToken, chatId, `🎨 Image prompt (paste into Midjourney / ChatGPT / Gemini / Sora if you want a better one):\n\n${draft.imagePrompt}`, fetchFn);
   }
   await sendMessage(botToken, chatId, formatCaption(draft), fetchFn, buildKeyboard(draft.id));
 }
