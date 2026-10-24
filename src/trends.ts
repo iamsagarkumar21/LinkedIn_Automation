@@ -4,21 +4,25 @@ const UA = "linkedin-auto-poster/0.2 (personal content assistant)";
 
 // Signals that tend to go viral on a tech/AI professional's LinkedIn feed
 // (fresh news, incidents, launches, India angle, meme-worthy stories).
+// Reward concrete, named news stories with a clear tech / AI angle.
+// (Earlier we also boosted India keywords; that pushed too much
+// desi-flavoured content. India-only stuff is still eligible via the
+// subreddits / Google News India feed below, just not auto-boosted.)
 const BOOST_WORDS = [
   "bug", "vulnerability", "cve", "rce", "exploit", "crash", "outage", "down",
   "leaked", "hacked", "breach", "lawsuit", "ban", "banned", "fired", "layoffs",
-  "launch", "launched", "release", "released", "unveils", "announces",
+  "launch", "launched", "release", "released", "unveils", "announces", "ships",
   "ai", "agent", "llm", "gpt", "claude", "gemini", "openai", "anthropic",
-  "india", "indian", "bengaluru", "bangalore", "mumbai", "delhi", "jio",
-  "reliance", "tata", "zomato", "swiggy", "paytm", "ola", "flipkart", "upi",
-  "diwali", "holi", "festival", "cricket", "ipl",
+  "nvidia", "deepmind", "mistral", "meta ai", "copilot", "cursor",
+  "funding", "raises", "acquires", "ipo", "acquired",
 ];
 
 const PENALTY_WORDS = [
   // soft-skill / recruitment noise we don't want
   "hiring", "we're hiring", "join our team", "apply now", "career tips",
-  // generic motivation
-  "motivation", "monday motivation", "success tips",
+  // generic motivation / listicle junk
+  "motivation", "monday motivation", "success tips", "top 10", "top 5",
+  "ultimate guide", "beginner's guide",
 ];
 
 export function topicKey(title: string): string {

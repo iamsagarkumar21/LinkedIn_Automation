@@ -16,13 +16,13 @@ export async function selectTopic(args: SelectArgs): Promise<Topic | null> {
 
   const numbered = fresh.map((t, i) => `${i + 1}. [${t.source}, score ${t.score}] ${t.title}`).join("\n");
   const system = [
-    "You pick the single best trending topic for an India-based AI/tech professional's LinkedIn post.",
-    "The post will be witty, slightly satirical, and often code-switches between English and Hindi.",
-    "STRONGLY PREFER topics that are:",
-    "- Fresh news (today/this week) about AI, software, startups, outages, bugs, launches, lawsuits, incidents.",
-    "- A story you can bend into an Indian context (desi analogy, Hindi punchline, local culture) — e.g. 'Tesla Roadster vs Bangalore potholes', 'AI vs Indian aunty', 'Jio AGM shareholder', 'PHP RCE bug AI found'.",
-    "- Memeable: a surprising fact, a failure, a culture clash, a '20-year-old bug' angle.",
-    "AVOID: hiring posts, generic motivation, vague thought-leadership, soft-skill tips, old evergreen content, politics.",
+    "You pick the single best trending topic for an AI/tech professional's LinkedIn post.",
+    "The post will summarise one real news item in ~80 words with a dry, observational hook and clear facts.",
+    "STRONGLY PREFER topics where the headline alone makes it obvious WHAT happened and WHY a tech professional should care:",
+    "- Fresh (today/this week) news about AI models, software launches, outages, security bugs/CVEs, data breaches, major funding, acquisitions, lawsuits, open-source releases, developer-tool incidents.",
+    "- Specific, named stories with numbers or IDs (CVE, version, severity, user count, dollar amount).",
+    "- A clear AI / engineering angle the writer can expand into a 'why this matters' twist.",
+    "AVOID: hiring posts, generic motivation, soft-skill advice, 'top 10 tips' listicles, vague thought-leadership, political controversy, celebrity gossip, or headlines so vague the writer would have to invent the facts.",
     "Reply with ONLY the number of the best option.",
   ].join("\n");
   try {

@@ -7,14 +7,13 @@ export interface ImagePromptArgs {
 
 export async function craftImagePrompt(args: ImagePromptArgs): Promise<string> {
   const system = [
-    "You write prompts for an AI image generator (Midjourney / Gemini / Sora / ChatGPT image) for a LinkedIn post.",
-    "The post is an India-based AI/tech practitioner's slightly satirical take on a news item.",
-    "Produce ONE prompt (2-4 sentences) describing a vivid, meme-style scene that visually mirrors the post's punchline.",
-    "Lean into desi context when the post does: Indian street, auto-rickshaw, chaiwala, aunty, Bangalore pothole, Jio AGM audience, Indian barber shop, etc.",
-    "Allow comic-style callouts, speech bubbles, Hinglish text labels in the IMAGE when they are the joke (e.g. 'Haanji, ho jayega.', 'Shareholder hoon. Discount milega?').",
-    "Specify style explicitly: 'photo-real cinematic meme-poster', 'Pixar-style illustration', 'editorial collage with bold headline', etc. so the image feels polished, not generic clipart.",
-    "Avoid real logos and real people's faces unless the post itself names them.",
-    "Reply with ONLY the image prompt, no preamble.",
+    "You write a single image-generation prompt for a LinkedIn post about a real tech / AI news story.",
+    "Default style: a polished editorial poster — clean composition, bold headline-style typography on top of a cinematic photo-realistic or 3D-rendered scene that visually represents the news. Think magazine cover meets tech blog hero image.",
+    "The image's main title text should mirror the post's hook or the news in 3-6 words (e.g. 'PHP2Shell: AI Found the Bug', 'OpenAI Agent Goes Shopping').",
+    "Only include an Indian setting, desi characters or Hinglish text in the image if the NEWS itself is explicitly about India or Indian companies — otherwise keep it globally neutral.",
+    "No real logos, no real people's faces unless the post explicitly names them.",
+    "Specify: lighting, mood, 1-2 key visual elements, and the on-image text. 2-4 sentences total.",
+    "Reply with ONLY the prompt, no preamble.",
   ].join(" ");
   const user = `Topic: ${args.topic.title}\n\nPost text:\n${args.postText.slice(0, 800)}\n\nWrite the image prompt.`;
   try {

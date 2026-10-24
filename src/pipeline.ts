@@ -1,7 +1,7 @@
 import type { Env, PostDraft } from "./types";
 import { collectTrends } from "./trends";
 import { selectTopic } from "./selector";
-import { writePost } from "./writer";
+import { writePost, fetchArticleBody } from "./writer";
 import { craftImagePrompt } from "./imagePrompt";
 import { generateImage } from "./image";
 import { sendDraft, sendMessage } from "./telegram";
@@ -21,7 +21,8 @@ export async function buildDraft(env: Env, deps: PipelineDeps = {}): Promise<Pos
   if (!topic) throw new NoFreshTopicError();
 
   const style = await getStyleConfig(env);
-  const { text, hashtags } = await writePost({ topic, style, env, groqApiKey: env.GROQ_API_KEY, fetchFn, signedFetch: deps.signedFetch });
+  const articleBody = await fetchArticleBody(topic.url, fetchFn);
+  const { text, hashtags } = await writePost({ topic, style, env, groqApiKey: env.GROQ_API_KEY, articleBody, fetchFn, signedFetch: deps.signedFetch });
   const imgPrompt = await craftImagePrompt({ topic, postText: text, groqApiKey: env.GROQ_API_KEY, fetchFn });
   const image = await generateImage({ prompt: imgPrompt, geminiApiKey: env.GEMINI_API_KEY, fetchFn });
 
@@ -35,7 +36,8 @@ export async function buildDraft(env: Env, deps: PipelineDeps = {}): Promise<Pos
 export async function regenText(env: Env, draft: PostDraft, deps: PipelineDeps = {}): Promise<PostDraft> {
   const fetchFn = deps.fetchFn ?? globalThis.fetch;
   const style = await getStyleConfig(env);
-  const { text, hashtags } = await writePost({ topic: draft.topic, style, env, groqApiKey: env.GROQ_API_KEY, fetchFn, signedFetch: deps.signedFetch });
+  const articleBody = await fetchArticleBody(draft.topic.url, fetchFn);
+  const { text, hashtags } = await writePost({ topic: draft.topic, style, env, groqApiKey: env.GROQ_API_KEY, articleBody, fetchFn, signedFetch: deps.signedFetch });
   return { ...draft, id: crypto.randomUUID(), text, hashtags, status: "pending", createdAt: Date.now() };
 }
 
