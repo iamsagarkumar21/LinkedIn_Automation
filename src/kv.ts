@@ -10,7 +10,7 @@ const K = {
 const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
 
 export const DEFAULT_STYLE: StyleConfig = {
-  tone: "A smart engineer thinking out loud — like they just read the news and noticed something quietly interesting. Dry, observational, understated. Sounds like a short story, not a press release and not a stand-up set. The reader should feel the writer is intelligent and relaxed, not performing.",
+  tone: "A smart engineer thinking out loud — like they just read the news and noticed something quietly interesting. Dry, observational, understated. Sounds like a short story, not a press release and not a stand-up set. The reader should feel the writer is intelligent and relaxed, not performing. LANGUAGE MUST BE SIMPLE ENGLISH: everyday words a non-native English speaker could follow, short sentences, zero jargon that isn't explained in-line. If a tech term needs explaining, explain it in half a sentence; otherwise skip it.",
   structureRules: [
     "No fixed template. Study the RHYTHM of good posts, don't fill in sections.",
     "Typical shape (just a shape, not a rule): a few short lines of news setup → one short pivot sentence that bridges to an analogy or realisation → the analogy or thought broken into one-sentence paragraphs with blank lines between them → a quiet one-line closer.",
@@ -27,12 +27,15 @@ export const DEFAULT_STYLE: StyleConfig = {
     "Break the analogy into one-sentence paragraphs so a phone reader has to breathe between them",
     "Use the facts you were given (CVE, numbers, names). If a fact wasn't given, drop the sentence rather than inventing it",
     "Prefer concrete nouns ('the robot', 'the maid', 'the audit log') over abstract ones ('solutions', 'ecosystem', 'synergy')",
+    "Prefer short, everyday words. 'use' not 'leverage'. 'build' not 'architect'. 'help' not 'facilitate'. 'many' not 'myriad'. 'strong' not 'robust'. 'new' not 'novel'. 'spread' not 'proliferate'. The post should read like a text message, not a research paper",
     "Studying the samples: notice the rhythm, pivot moves, and ending style — then write something NEW in that voice, not a reshuffle of the sample",
   ],
   donts: [
     "No fabricated facts, CVE numbers, quotes, percentages or company statements — if it wasn't in the material you were given, don't write it",
     "No sectioned structure with visible 'Hook:', 'Facts:', 'Takeaway:', 'Lesson:' or any labelled block",
     "No business-speak: 'unlock', 'leverage', 'ecosystem', 'paradigm', 'game-changer', 'revolutionize', 'disrupt', 'synergy', 'solutions', 'empower', 'drive growth'",
+    "No complex vocabulary when a plain word works. Avoid: 'robust', 'orchestrate', 'proliferate', 'myriad', 'plethora', 'facilitate', 'underlying', 'novel', 'nuanced', 'interoperability', 'tangential', 'canonical', 'idiomatic', 'epistemic', 'holistic'. Use simpler words a 10th-grader would understand",
+    "No unexplained technical acronyms. If the post uses one (RAG, MCP, SLM, RL, PEFT, LoRA, A/B, SLA), either explain it in half a sentence or drop it",
     "No LinkedIn thought-leader intros: 'Here's why this matters', 'The good news is', 'What's interesting', '3 things we can learn', 'In 2026…', 'Welcome to the era of…'",
     "No forced CTA ('what are your thoughts?', 'drop a 👇', 'thoughts?', 'agree?')",
     "No motivational poster lines ('keep learning', 'success is a journey', 'embrace the change')",
