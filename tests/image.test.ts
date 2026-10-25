@@ -12,21 +12,23 @@ describe("extractGeminiImage", () => {
   });
 });
 
-describe("generateImage fallback", () => {
-  it("falls through to Pollinations when Gemini has no image", async () => {
-    const mockFetch = (async (url: string) => {
-      if (String(url).includes("generativelanguage")) {
-        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "no" }] } }] }), { status: 200 });
-      }
-      return new Response(new Uint8Array([65, 66, 67]), { status: 200, headers: { "Content-Type": "image/jpeg" } });
-    }) as unknown as typeof fetch;
+describe("generateImage (Gemini only)", () => {
+  it("returns the Gemini image when present", async () => {
+    const mockFetch = (async () =>
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: "QUJD" } }] } }] }), { status: 200 })) as unknown as typeof fetch;
     const out = await generateImage({ prompt: "cats", geminiApiKey: "k", fetchFn: mockFetch });
-    expect(out?.mime).toBe("image/jpeg");
-    expect(out?.base64).toBe(bytesToBase64(new Uint8Array([65, 66, 67])));
+    expect(out).toEqual({ base64: "QUJD", mime: "image/png" });
   });
-  it("returns null when all providers fail", async () => {
+  it("returns null when Gemini has no image (owner uploads instead)", async () => {
+    const mockFetch = (async () =>
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "no" }] } }] }), { status: 200 })) as unknown as typeof fetch;
+    expect(await generateImage({ prompt: "x", geminiApiKey: "k", fetchFn: mockFetch })).toBeNull();
+  });
+  it("returns null when Gemini errors", async () => {
     const mockFetch = (async () => new Response("err", { status: 500 })) as unknown as typeof fetch;
-    const out = await generateImage({ prompt: "x", geminiApiKey: "k", fetchFn: mockFetch });
-    expect(out).toBeNull();
+    expect(await generateImage({ prompt: "x", geminiApiKey: "k", fetchFn: mockFetch })).toBeNull();
   });
 });
+// bytesToBase64 is still exported; keep an import reference so the removal
+// of the Pollinations test doesn't leave a dangling unused import error.
+void bytesToBase64;

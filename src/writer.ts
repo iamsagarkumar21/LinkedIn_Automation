@@ -4,19 +4,31 @@ import { groqChat } from "./llm/groq";
 
 export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?: string): { system: string; user: string } {
   const system = [
-    "You are a LinkedIn ghostwriter for an AI/tech professional.",
-    `Tone: ${style.tone}`,
-    "Structure rules:", ...style.structureRules.map((r) => `- ${r}`),
-    `Hashtags: ${style.hashtagStrategy}`,
-    "Do:", ...style.dos.map((r) => `- ${r}`),
-    "Don't:", ...style.donts.map((r) => `- ${r}`),
-    style.examples.length ? `Match the voice of these example posts (notice: ONE joke in the hook, then plain facts, then a dry takeaway):\n${style.examples.join("\n---\n")}` : "",
-    'Return ONLY a JSON object, no markdown fences: {"text": "<the post body WITHOUT hashtags>", "hashtags": ["#Tag1", "#Tag2"]}',
+    "You are ghostwriting a single short LinkedIn post for an AI/tech practitioner.",
+    "",
+    `VOICE: ${style.tone}`,
+    "",
+    "HOW TO WRITE:",
+    ...style.structureRules.map((r) => `- ${r}`),
+    "",
+    `HASHTAGS: ${style.hashtagStrategy}`,
+    "",
+    "DO:",
+    ...style.dos.map((r) => `- ${r}`),
+    "",
+    "DON'T:",
+    ...style.donts.map((r) => `- ${r}`),
+    "",
+    style.examples.length
+      ? `TWO FLAVOUR SAMPLES (just the voice and the rhythm — DO NOT copy sentences, phrases, analogies, characters, or the subject matter from these; write something NEW about the actual story below):\n\n${style.examples.map((e, i) => `--- sample ${i + 1} ---\n${e}`).join("\n\n")}`
+      : "",
+    "",
+    'Return ONLY a JSON object, no markdown fences: {"text": "<the post body WITHOUT hashtags>", "hashtags": ["#Tag1"]}. Hashtags array may be empty — that is fine.',
   ].filter(Boolean).join("\n");
 
   const bodyBlock = articleBody && articleBody.trim()
-    ? `Article excerpt (use ONLY these facts — do not invent anything that is not here or in the headline):\n"""\n${articleBody.slice(0, 3000)}\n"""\n`
-    : `No article excerpt is available. Write only from the headline. Keep facts minimal and generic rather than inventing specifics.\n`;
+    ? `Article excerpt (use ONLY these facts — never invent CVE numbers, quotes, percentages, dates, or company statements that are not here or in the headline):\n"""\n${articleBody.slice(0, 3000)}\n"""`
+    : `No article excerpt is available. Write only from the headline. Keep the post short and do not invent specifics.`;
 
   const user = [
     `Headline: "${topic.title}"`,
@@ -24,7 +36,8 @@ export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?
     `Link: ${topic.url}`,
     "",
     bodyBlock,
-    "Write today's post about this. Follow the 5-section structure (Hook / Facts / Twist / Takeaway / CTA + hashtags) and stay inside 70-100 words.",
+    "",
+    "Write today's post about this story. Study the sample rhythm but write something NEW. 60-120 words. No labelled sections. Hashtags optional.",
   ].join("\n");
 
   return { system, user };

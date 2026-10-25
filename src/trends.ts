@@ -113,16 +113,27 @@ async function safeFetchText(fetchFn: typeof fetch, url: string): Promise<string
   } catch (e) { console.log(`trends fetch threw: ${url}: ${e}`); return null; }
 }
 
-const SUBREDDITS = ["technology", "programming", "developersIndia", "india", "webdev", "LocalLLaMA"];
+const SUBREDDITS = [
+  "LocalLLaMA",       // the AI-practitioner community that spots real news first
+  "MachineLearning",  // papers + model releases
+  "programming",      // mainstream dev news
+  "developersIndia",  // India-specific when relevant
+];
 const RSS_FEEDS = [
-  // Global tech
+  // High-signal AI commentary (Simon Willison writes digestible, LinkedIn-ready AI news almost daily)
+  { url: "https://simonwillison.net/atom/everything/", source: "simonwillison" },
+  // Deep, well-reported tech journalism
+  { url: "https://feeds.arstechnica.com/arstechnica/index", source: "arstechnica" },
+  { url: "https://www.404media.co/rss/", source: "404media" },
+  // Industry news aggregators
   { url: "https://techcrunch.com/feed/", source: "techcrunch" },
   { url: "https://www.theverge.com/rss/index.xml", source: "theverge" },
+  // Developer-written posts (good for finding engineering-angle stories)
   { url: "https://dev.to/feed", source: "dev.to" },
-  // India tech / startup / incidents (via Google News search RSS — free, no auth)
-  { url: "https://news.google.com/rss/search?q=india+ai+OR+startup+OR+tech+when:1d&hl=en-IN&gl=IN&ceid=IN:en", source: "gnews-india-tech" },
-  { url: "https://news.google.com/rss/search?q=programming+OR+developer+OR+outage+OR+bug+when:1d&hl=en-US&gl=US&ceid=US:en", source: "gnews-dev" },
+  // Fresh news search — last-24h cuts for AI / dev / India tech
   { url: "https://news.google.com/rss/search?q=openai+OR+anthropic+OR+google+ai+when:1d&hl=en-US&gl=US&ceid=US:en", source: "gnews-ai" },
+  { url: "https://news.google.com/rss/search?q=programming+OR+developer+OR+outage+OR+CVE+when:1d&hl=en-US&gl=US&ceid=US:en", source: "gnews-dev" },
+  { url: "https://news.google.com/rss/search?q=india+ai+OR+startup+OR+tech+when:1d&hl=en-IN&gl=IN&ceid=IN:en", source: "gnews-india-tech" },
 ];
 
 export async function collectTrends(fetchFn: typeof fetch = globalThis.fetch): Promise<Topic[]> {
