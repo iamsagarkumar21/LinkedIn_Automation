@@ -17,10 +17,10 @@ export const DEFAULT_STYLE: StyleConfig = {
     "Rhythm matters more than structure. Each paragraph is usually 1 sentence. Blank line between every paragraph. White space is doing half the work.",
     "60-120 words total. Shorter is almost always better. If you go above 120 you lost control.",
     "No required ending format — no 'what's your take?', no 'patch today', no 'lesson:' line, no CTA unless it emerges naturally.",
-    "Hashtags are OPTIONAL. 0 is a valid answer. If used, 0-3 only, only when they're genuinely relevant tags someone would search.",
+    "Always end with 4-5 relevant hashtags on their own final line (see HASHTAGS).",
     "Emojis are OPTIONAL. 0 is a valid answer. If used, 1-2 total, placed where a human would naturally pause.",
   ],
-  hashtagStrategy: "Default: no hashtags. Only add 1-3 if they're genuinely useful search tags (specific product/CVE/event names, or narrow technical topics). Never broad #AI #Tech #Innovation soup. Final line, PascalCase, no spaces.",
+  hashtagStrategy: "ALWAYS exactly 4-5 hashtags, never fewer. Mix: 1-2 specific to the story (product, company, CVE or event name), 2-3 broader but still relevant (e.g. #AI, #SoftwareEngineering, #CyberSecurity, #DevOps, #MachineLearning). PascalCase for multi-word, no spaces. They go in the hashtags array only, not in the post text.",
   dos: [
     "Lead with the actual news in plain English — what happened, who, what number if any — in 2-4 short lines",
     "Then pivot. The pivot is the whole post. It's the moment the writer compares the news to something quietly familiar — raising toddlers, Friday deploys, an auto driver at a red light, a maid counting rotis, a CA uncle, a client call at 2 AM — whatever actually fits",

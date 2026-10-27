@@ -23,7 +23,7 @@ export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?
       ? `TWO FLAVOUR SAMPLES (just the voice and the rhythm — DO NOT copy sentences, phrases, analogies, characters, or the subject matter from these; write something NEW about the actual story below):\n\n${style.examples.map((e, i) => `--- sample ${i + 1} ---\n${e}`).join("\n\n")}`
       : "",
     "",
-    'Return ONLY a JSON object, no markdown fences: {"text": "<the post body WITHOUT hashtags>", "hashtags": ["#Tag1"]}. Hashtags array may be empty — that is fine.',
+    'Return ONLY a JSON object, no markdown fences: {"text": "<the post body WITHOUT hashtags>", "hashtags": ["#Tag1"]}. The hashtags array MUST contain 4-5 relevant hashtags.',
   ].filter(Boolean).join("\n");
 
   const bodyBlock = articleBody && articleBody.trim()
@@ -37,7 +37,7 @@ export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?
     "",
     bodyBlock,
     "",
-    "Write today's post about this story. Study the sample rhythm but write something NEW. 60-120 words. No labelled sections. Hashtags optional.",
+    "Write today's post about this story. Study the sample rhythm but write something NEW. 60-120 words. No labelled sections. Include 4-5 hashtags in the hashtags array.",
   ].join("\n");
 
   return { system, user };
@@ -71,15 +71,50 @@ export interface WriteArgs {
   fetchFn?: typeof fetch; signedFetch?: typeof fetch;
 }
 
+const MIN_HASHTAGS = 4;
+const GENERIC_TAGS = ["#AI", "#SoftwareEngineering", "#Tech", "#Developers", "#Technology"];
+
+function normTag(h: string): string {
+  const t = h.trim().replace(/^#+/, "").replace(/[^\p{L}\p{N}_]/gu, "");
+  return t ? "#" + t : "";
+}
+
+/** Guarantee 4-5 hashtags: ask Groq for missing ones, then pad with generic tags. */
+export async function ensureHashtags(
+  post: { text: string; hashtags: string[] }, topic: Topic, groqApiKey: string, fetchFn?: typeof fetch,
+): Promise<string[]> {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const add = (h: string) => {
+    const t = normTag(h);
+    if (t && !seen.has(t.toLowerCase()) && out.length < 5) { seen.add(t.toLowerCase()); out.push(t); }
+  };
+  post.hashtags.forEach(add);
+  if (out.length < MIN_HASHTAGS) {
+    try {
+      const raw = await groqChat({
+        apiKey: groqApiKey, temperature: 0.4, fetchFn,
+        system: "You output only hashtags: 5 relevant LinkedIn hashtags, space separated, PascalCase, no explanation.",
+        user: `Headline: ${topic.title}\n\nPost:\n${post.text}`,
+      });
+      (raw.match(/#[\p{L}\p{N}_]+/gu) ?? []).forEach(add);
+    } catch { /* fall through to generic */ }
+  }
+  for (const g of GENERIC_TAGS) if (out.length < MIN_HASHTAGS) add(g);
+  return out;
+}
+
 export async function writePost(args: WriteArgs): Promise<{ text: string; hashtags: string[] }> {
   const { system, user } = buildWriterPrompt(args.topic, args.style, args.articleBody);
+  let post: { text: string; hashtags: string[] };
   try {
     const raw = await bedrockClaude({ env: args.env, system, user, signedFetch: args.signedFetch });
-    return parseWriterOutput(raw);
+    post = parseWriterOutput(raw);
   } catch {
     const raw = await groqChat({ apiKey: args.groqApiKey, system, user, temperature: 0.8, fetchFn: args.fetchFn });
-    return parseWriterOutput(raw);
+    post = parseWriterOutput(raw);
   }
+  return { text: post.text, hashtags: await ensureHashtags(post, args.topic, args.groqApiKey, args.fetchFn) };
 }
 
 /** Fetch a news article, strip HTML, return readable text (first ~3000 chars). Best-effort — any failure returns "". */
