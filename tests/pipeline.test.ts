@@ -47,6 +47,6 @@ describe("runDailyPipeline", () => {
     }) as unknown as typeof fetch;
     await runDailyPipeline(env, { fetchFn: empty, signedFetch: goodBedrock });
     expect(await getPendingDraft(env)).toBeNull();
-    expect(sent.some((b) => b.includes("No fresh trending topic"))).toBe(true);
+    expect(sent.some((b) => b.includes("No fresh AI news topic"))).toBe(true);
   });
 });

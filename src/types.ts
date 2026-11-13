@@ -2,6 +2,7 @@ export interface Topic { key: string; title: string; url: string; source: string
 export type DraftStatus = "pending" | "publishing";
 export interface PostDraft {
   id: string; topic: Topic; text: string; hashtags: string[];
+  category?: "ai_news" | "tech_news" | "learning" | "repo";
   imageBase64?: string; imageMime?: string; imagePrompt?: string;
   status: DraftStatus; createdAt: number;
 }

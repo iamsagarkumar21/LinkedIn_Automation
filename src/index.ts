@@ -3,6 +3,7 @@ import { runDailyPipeline, regenText, regenImage, type PipelineDeps } from "./pi
 import { parseUpdate, sendDraft, sendMessage, answerCallback, fetchTelegramFile, type ParsedCommand } from "./telegram";
 import { getPendingDraft, setPendingDraft, clearPendingDraft, setAwaitingEdit, takeAwaitingEdit } from "./kv";
 import { publishPost } from "./linkedin";
+import { categoryForDate } from "./schedule";
 
 const MAX_POST_CHARS = 3000; // LinkedIn commentary limit
 
@@ -125,8 +126,10 @@ export async function handleCommand(env: Env, cmd: ParsedCommand, deps: Pipeline
 }
 
 export default {
-  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
-    await runDailyPipeline(env);
+  async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const category = categoryForDate(new Date(event.scheduledTime));
+    if (!category) { console.log("no post scheduled for today (Tue/Thu or off-Sunday)"); return; }
+    await runDailyPipeline(env, {}, category);
   },
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     if (request.method !== "POST") return new Response("ok", { status: 200 });

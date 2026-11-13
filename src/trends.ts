@@ -65,13 +65,16 @@ export function parseReddit(json: any, sub: string): Topic[] {
 
 export function parseRss(xml: string, source: string): Topic[] {
   const items: Topic[] = [];
-  const itemRe = /<item[\s\S]*?<\/item>/gi;
-  const titleRe = /<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i;
+  // RSS uses <item>; Atom (e.g. simonwillison.net) uses <entry> with <link href="..."/>.
+  const blockRe = /<(item|entry)[\s>][\s\S]*?<\/\1>/gi;
+  const titleRe = /<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i;
   const linkRe = /<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i;
-  for (const block of xml.match(itemRe) || []) {
+  const atomLinkRe = /<link[^>]*?href="([^"]+)"[^>]*>/i;
+  for (const m of xml.matchAll(blockRe)) {
+    const block = m[0];
     const title = (block.match(titleRe)?.[1] || "")
       .replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').trim();
-    const link = (block.match(linkRe)?.[1] || "").trim();
+    const link = (block.match(linkRe)?.[1] || block.match(atomLinkRe)?.[1] || "").trim();
     if (title) items.push({ key: topicKey(title), title, url: link, source, score: 50 + scoreBoost(title) });
   }
   return items;
@@ -166,5 +169,42 @@ export async function collectTrends(fetchFn: typeof fetch = globalThis.fetch): P
     if (!prev || t.score > prev.score) byKey.set(t.key, t);
   }
   console.log(`trends: collected ${out.length} items, ${byKey.size} unique`);
+  return [...byKey.values()].sort((a, b) => b.score - a.score);
+}
+
+/** Parse Hugging Face daily papers JSON: [{ paper: { id, title, upvotes } }]. */
+export function parseHfPapers(json: any): Topic[] {
+  if (!Array.isArray(json)) return [];
+  return json
+    .map((x: any) => x?.paper)
+    .filter((p: any) => p?.id && p?.title)
+    .map((p: any) => ({
+      key: topicKey(p.title), title: String(p.title).replace(/\s+/g, " ").trim(),
+      url: `https://huggingface.co/papers/${p.id}`,
+      source: "hf-papers", score: Number(p.upvotes) || 0,
+    }));
+}
+
+const LEARNING_RSS = [
+  { url: "https://simonwillison.net/atom/everything/", source: "simonwillison" },
+  { url: "https://dev.to/feed/tag/ai", source: "dev.to-ai" },
+  { url: "https://dev.to/feed/tag/machinelearning", source: "dev.to-ml" },
+];
+
+/** Sources for the "learning" category: concepts and techniques worth explaining, not breaking news. */
+export async function collectLearningTopics(fetchFn: typeof fetch = globalThis.fetch): Promise<Topic[]> {
+  const out: Topic[] = [];
+  const hf = await safeFetchJson(fetchFn, "https://huggingface.co/api/daily_papers");
+  if (hf) out.push(...parseHfPapers(hf).slice(0, 12));
+  for (const feed of LEARNING_RSS) {
+    const xml = await safeFetchText(fetchFn, feed.url);
+    if (xml) out.push(...parseRss(xml, feed.source).slice(0, 8));
+  }
+  const byKey = new Map<string, Topic>();
+  for (const t of out) {
+    const prev = byKey.get(t.key);
+    if (!prev || t.score > prev.score) byKey.set(t.key, t);
+  }
+  console.log(`learning trends: ${byKey.size} unique`);
   return [...byKey.values()].sort((a, b) => b.score - a.score);
 }

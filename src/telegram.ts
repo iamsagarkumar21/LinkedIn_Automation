@@ -1,4 +1,5 @@
 import type { PostDraft } from "./types";
+import { CATEGORY_LABEL } from "./schedule";
 
 const api = (token: string, method: string) => `https://api.telegram.org/bot${token}/${method}`;
 
@@ -42,6 +43,9 @@ export async function sendDraft(args: SendDraftArgs): Promise<void> {
   const fetchFn = args.fetchFn ?? globalThis.fetch;
   const { botToken, chatId, draft } = args;
 
+  if (draft.category) {
+    await sendMessage(botToken, chatId, `📂 Today's category: ${CATEGORY_LABEL[draft.category]}\n📰 Source: ${draft.topic.title}\n${draft.topic.url}`, fetchFn);
+  }
   if (draft.imageBase64 && draft.imageMime) {
     const form = new FormData();
     form.append("chat_id", chatId);

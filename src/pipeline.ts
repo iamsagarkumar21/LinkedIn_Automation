@@ -1,5 +1,6 @@
 import type { Env, PostDraft } from "./types";
-import { collectTrends } from "./trends";
+import { collectTrends, collectLearningTopics } from "./trends";
+import { categoryForDate, filterForCategory, CATEGORY_LABEL, type Category } from "./schedule";
 import { selectTopic } from "./selector";
 import { writePost, fetchArticleBody } from "./writer";
 import { craftImagePrompt } from "./imagePrompt";
@@ -13,21 +14,23 @@ export class NoFreshTopicError extends Error {
 
 export interface PipelineDeps { fetchFn?: typeof fetch; signedFetch?: typeof fetch; }
 
-export async function buildDraft(env: Env, deps: PipelineDeps = {}): Promise<PostDraft> {
+export async function buildDraft(env: Env, deps: PipelineDeps = {}, category: Category = "ai_news"): Promise<PostDraft> {
   const fetchFn = deps.fetchFn ?? globalThis.fetch;
-  const topics = await collectTrends(fetchFn);
+  const pool = category === "learning" ? await collectLearningTopics(fetchFn) : await collectTrends(fetchFn);
+  const topics = filterForCategory(pool, category);
+  console.log(`category ${category}: ${topics.length} candidate topics`);
   const recentKeys = await getRecentTopicKeys(env);
-  const topic = await selectTopic({ topics, recentKeys, groqApiKey: env.GROQ_API_KEY, fetchFn });
+  const topic = await selectTopic({ topics, recentKeys, groqApiKey: env.GROQ_API_KEY, category, fetchFn });
   if (!topic) throw new NoFreshTopicError();
 
   const style = await getStyleConfig(env);
   const articleBody = await fetchArticleBody(topic.url, fetchFn);
-  const { text, hashtags } = await writePost({ topic, style, env, groqApiKey: env.GROQ_API_KEY, articleBody, fetchFn, signedFetch: deps.signedFetch });
+  const { text, hashtags } = await writePost({ topic, style, env, groqApiKey: env.GROQ_API_KEY, articleBody, category, fetchFn, signedFetch: deps.signedFetch });
   const imgPrompt = await craftImagePrompt({ topic, postText: text, groqApiKey: env.GROQ_API_KEY, fetchFn });
   const image = await generateImage({ prompt: imgPrompt, geminiApiKey: env.GEMINI_API_KEY, fetchFn });
 
   return {
-    id: crypto.randomUUID(), topic, text, hashtags,
+    id: crypto.randomUUID(), topic, text, hashtags, category,
     imageBase64: image?.base64, imageMime: image?.mime, imagePrompt: imgPrompt,
     status: "pending", createdAt: Date.now(),
   };
@@ -37,7 +40,7 @@ export async function regenText(env: Env, draft: PostDraft, deps: PipelineDeps =
   const fetchFn = deps.fetchFn ?? globalThis.fetch;
   const style = await getStyleConfig(env);
   const articleBody = await fetchArticleBody(draft.topic.url, fetchFn);
-  const { text, hashtags } = await writePost({ topic: draft.topic, style, env, groqApiKey: env.GROQ_API_KEY, articleBody, fetchFn, signedFetch: deps.signedFetch });
+  const { text, hashtags } = await writePost({ topic: draft.topic, style, env, groqApiKey: env.GROQ_API_KEY, articleBody, category: draft.category, fetchFn, signedFetch: deps.signedFetch });
   return { ...draft, id: crypto.randomUUID(), text, hashtags, status: "pending", createdAt: Date.now() };
 }
 
@@ -68,17 +71,17 @@ async function warnIfAuthExpiring(env: Env, fetchFn: typeof fetch): Promise<void
   } catch { /* a failed warning must never block the draft */ }
 }
 
-export async function runDailyPipeline(env: Env, deps: PipelineDeps = {}): Promise<void> {
+export async function runDailyPipeline(env: Env, deps: PipelineDeps = {}, category: Category = "ai_news"): Promise<void> {
   const fetchFn = deps.fetchFn ?? globalThis.fetch;
   await warnIfAuthExpiring(env, fetchFn);
   try {
-    const draft = await buildDraft(env, deps);
+    const draft = await buildDraft(env, deps, category);
     await setPendingDraft(env, draft);
     await addRecentTopic(env, draft.topic.key);
     await sendDraft({ botToken: env.TELEGRAM_BOT_TOKEN, chatId: env.TELEGRAM_CHAT_ID, draft, fetchFn });
   } catch (err: any) {
     const msg = err?.name === "NoFreshTopicError"
-      ? "ℹ️ No fresh trending topic today — skipping."
+      ? `ℹ️ No fresh ${CATEGORY_LABEL[category]} topic today — skipping.`
       : `⚠️ Draft generation failed: ${err?.message ?? err}`;
     await sendMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, msg, fetchFn).catch(() => {});
   }

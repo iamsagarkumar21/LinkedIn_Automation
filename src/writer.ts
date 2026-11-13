@@ -1,8 +1,30 @@
 import type { Topic, StyleConfig, Env } from "./types";
 import { bedrockClaude } from "./llm/bedrock";
 import { groqChat } from "./llm/groq";
+import type { Category } from "./schedule";
 
-export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?: string): { system: string; user: string } {
+const LEARNING_BLOCK = [
+  "CATEGORY: LEARNING POST (this overrides the 60-120 words rule above).",
+  "Length: 180-280 words. Still short paragraphs with a blank line between them.",
+  "Goal: the reader understands one idea they did not understand before. Teach it like a smart friend explaining over chai, in simple English.",
+  "Shape (as flow, never as labelled sections): one plain line saying what the idea is and why it matters now -> the problem it solves, in everyday terms -> one analogy from daily life -> one small concrete example (numbers or a tiny scenario) -> one thing the reader can try or watch out for.",
+  "Explain any technical term in half a sentence the first time you use it. Never invent numbers, results or quotes that are not in the material you were given.",
+  "No bullet-point walls: at most one short list of 3 items if it truly helps.",
+].join("\n");
+
+const REPO_BLOCK = [
+  "CATEGORY: REPO SPOTLIGHT (this overrides the 60-120 words rule above).",
+  "Length: 90-160 words.",
+  "Say what the repository does in one plain sentence, what problem it removes, who should care, and how someone could try it in a few minutes (only use commands or steps that appear in the material you were given).",
+  "Mention the repo name exactly once and include its GitHub link on its own line near the end.",
+  "No hype words like 'amazing' or 'insane'. Be specific instead.",
+].join("\n");
+
+function categoryBlock(category?: Category): string {
+  return category === "learning" ? LEARNING_BLOCK : category === "repo" ? REPO_BLOCK : "";
+}
+
+export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?: string, category?: Category): { system: string; user: string } {
   const system = [
     "You are ghostwriting a single short LinkedIn post for an AI/tech practitioner.",
     "",
@@ -23,6 +45,8 @@ export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?
       ? `TWO FLAVOUR SAMPLES (just the voice and the rhythm — DO NOT copy sentences, phrases, analogies, characters, or the subject matter from these; write something NEW about the actual story below):\n\n${style.examples.map((e, i) => `--- sample ${i + 1} ---\n${e}`).join("\n\n")}`
       : "",
     "",
+    categoryBlock(category),
+    "",
     'Return ONLY a JSON object, no markdown fences: {"text": "<the post body WITHOUT hashtags>", "hashtags": ["#Tag1"]}. The hashtags array MUST contain 4-5 relevant hashtags.',
   ].filter(Boolean).join("\n");
 
@@ -37,7 +61,9 @@ export function buildWriterPrompt(topic: Topic, style: StyleConfig, articleBody?
     "",
     bodyBlock,
     "",
-    "Write today's post about this story. Study the sample rhythm but write something NEW. 60-120 words. No labelled sections. Include 4-5 hashtags in the hashtags array.",
+    category === "learning" || category === "repo"
+      ? "Write today's post about this. Follow the CATEGORY instructions for length and shape. No labelled sections. Include 4-5 hashtags in the hashtags array."
+      : "Write today's post about this story. Study the sample rhythm but write something NEW. 60-120 words. No labelled sections. Include 4-5 hashtags in the hashtags array.",
   ].join("\n");
 
   return { system, user };
@@ -67,7 +93,7 @@ export function parseWriterOutput(raw: string): { text: string; hashtags: string
 
 export interface WriteArgs {
   topic: Topic; style: StyleConfig; env: Env; groqApiKey: string;
-  articleBody?: string;
+  articleBody?: string; category?: Category;
   fetchFn?: typeof fetch; signedFetch?: typeof fetch;
 }
 
@@ -105,7 +131,7 @@ export async function ensureHashtags(
 }
 
 export async function writePost(args: WriteArgs): Promise<{ text: string; hashtags: string[] }> {
-  const { system, user } = buildWriterPrompt(args.topic, args.style, args.articleBody);
+  const { system, user } = buildWriterPrompt(args.topic, args.style, args.articleBody, args.category);
   let post: { text: string; hashtags: string[] };
   try {
     const raw = await bedrockClaude({ env: args.env, system, user, signedFetch: args.signedFetch });
